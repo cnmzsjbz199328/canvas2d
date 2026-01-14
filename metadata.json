@@ -1,0 +1,5 @@
+{
+  "name": "Canvas 2D Game Gen",
+  "description": "A natural language interface to generate, preview, and iterate on single-file HTML5 Canvas games using Gemini 3.",
+  "requestFramePermissions": []
+}
