@@ -9,4 +9,13 @@ export interface GameState {
   version: number;
 }
 
-export type TabOption = 'preview' | 'code';
+export type TabOption = 'preview' | 'code' | 'leaderboard';
+
+export interface SavedGame {
+  id: string;
+  title: string;
+  description: string;
+  code: string;
+  likes: number;
+  createdAt: string; // ISO timestamp
+}
