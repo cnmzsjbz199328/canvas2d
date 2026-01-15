@@ -8,28 +8,64 @@ import { generateGameCode, iterateGameCode } from './services/geminiService';
 import { Message, TabOption, GameState } from './types';
 import { Code, Play, Terminal, Cpu, Sparkles, X, Trophy, Save } from 'lucide-react';
 
-const INITIAL_GAME_CODE = `<!DOCTYPE html>
-<html>
-<head>
-<style>
-  body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #000; color: #0f0; font-family: 'Courier New', monospace; }
-  canvas { border: 2px solid #333; }
-  .scanline {
-    position: fixed; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none;
-    background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
-    background-size: 100% 4px;
-    z-index: 10;
+// The new "Engine" format: Just the logic object
+const INITIAL_GAME_CODE = `{
+  init: (state, width, height) => {
+    state.player = { x: width/2, y: height/2, size: 20, color: '#00ffff' };
+    state.particles = [];
+    state.score = 0;
+  },
+  
+  update: (state, input, dt) => {
+    // Movement
+    const speed = 200;
+    if (input.keys['ArrowUp'] || input.keys['KeyW']) state.player.y -= speed * dt;
+    if (input.keys['ArrowDown'] || input.keys['KeyS']) state.player.y += speed * dt;
+    if (input.keys['ArrowLeft'] || input.keys['KeyA']) state.player.x -= speed * dt;
+    if (input.keys['ArrowRight'] || input.keys['KeyD']) state.player.x += speed * dt;
+    
+    // Simple particle trail
+    if (Math.random() < 0.5) {
+      state.particles.push({
+        x: state.player.x, y: state.player.y,
+        vx: (Math.random()-0.5)*50, vy: (Math.random()-0.5)*50,
+        life: 1.0
+      });
+    }
+    
+    // Update particles
+    state.particles.forEach(p => {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.life -= dt * 2;
+    });
+    state.particles = state.particles.filter(p => p.life > 0);
+  },
+  
+  draw: (state, ctx, width, height) => {
+    // Background
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Draw Particles
+    state.particles.forEach(p => {
+      ctx.fillStyle = \`rgba(0, 255, 255, \${p.life})\`;
+      ctx.fillRect(p.x, p.y, 4, 4);
+    });
+    
+    // Draw Player
+    ctx.fillStyle = state.player.color;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = state.player.color;
+    ctx.fillRect(state.player.x - 10, state.player.y - 10, 20, 20);
+    ctx.shadowBlur = 0;
+    
+    // Text
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText('SYSTEM READY. WASD TO MOVE.', 20, 40);
   }
-</style>
-</head>
-<body>
-<div class="scanline"></div>
-<div style="text-align: center;">
-  <h1>> INITIALIZING_SYSTEM</h1>
-  <p>Waiting for user input...</p>
-</div>
-</body>
-</html>`;
+}`;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabOption>('preview');
@@ -40,7 +76,7 @@ export default function App() {
   });
   
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'system', content: 'Agent initialized. Ready to generate HTML5 Canvas applications.\nType a command to begin (e.g., "create a space shooter").' }
+    { role: 'system', content: 'Engine Core initialized. Ready to generate Game Logic Objects.\nType a command to begin (e.g., "create a space shooter").' }
   ]);
 
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
@@ -75,7 +111,7 @@ export default function App() {
 
       setMessages(prev => [...prev, { 
         role: 'system', 
-        content: `> Task completed.\n> Generated ${newCode.length} bytes.\n> Updated preview successfully.` 
+        content: `> Task completed.\n> Generated ${newCode.length} bytes.\n> Engine hot-reloaded successfully.` 
       }]);
       
       // Auto-switch to preview on update
@@ -127,7 +163,7 @@ export default function App() {
           <div className="flex items-center gap-4">
              <div className="flex items-center gap-2 text-zinc-500">
                <Cpu size={16} />
-               <span className="text-xs font-bold">CANVAS_GEN_V{gameState.version}</span>
+               <span className="text-xs font-bold">ENGINE_V{gameState.version}</span>
              </div>
              <div className="h-4 w-[1px] bg-zinc-700 mx-2"></div>
              
