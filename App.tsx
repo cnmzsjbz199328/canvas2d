@@ -111,25 +111,20 @@ export default function App() {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [optimizeInput, setOptimizeInput] = useState('');
 
-  const handleSendMessage = async (input: string) => {
+  // --- HANDLER 1: NEW GAME CREATION (Chat Panel) ---
+  // Triggers Full Orchestration Pipeline regardless of current state
+  const handleCreateNewGame = async (input: string) => {
     if (!input.trim()) return;
 
     // Add user message
     const userMsg: Message = { role: 'user', content: input };
     setMessages(prev => [...prev, userMsg]);
     setGameState(prev => ({ ...prev, isGenerating: true }));
-    setOrchStage('idle');
+    setOrchStage('designing');
+    setProcessingStatus('Designer Agent is brainstorming...');
 
     try {
-      let newCode = '';
-      const isFirstGeneration = gameState.version === 0;
-
-      if (isFirstGeneration) {
-        // FULL ORCHESTRATION PIPELINE
-        setOrchStage('designing');
-        setProcessingStatus('Designer Agent is brainstorming...');
-        
-        newCode = await orchestrateGameGeneration(input, (stage, content) => {
+        const newCode = await orchestrateGameGeneration(input, (stage, content) => {
             if (stage === 'designing') {
                 setOrchStage('designing');
                 setProcessingStatus('Drafting mechanics & lore...');
@@ -148,23 +143,16 @@ export default function App() {
             }
         });
 
-      } else {
-        // ITERATION PIPELINE (Directly to Engineer)
-        setOrchStage('refining');
-        setProcessingStatus('Engineer Agent is optimizing...');
-        newCode = await iterateGameCode(gameState.code, input, (status) => setProcessingStatus(status));
-      }
-
-      setGameState({
+      setGameState(prev => ({
         code: newCode,
         isGenerating: false,
-        version: gameState.version + 1
-      });
+        version: prev.version + 1
+      }));
 
       setOrchStage('idle');
       setMessages(prev => [...prev, { 
         role: 'system', 
-        content: `> Build Successful.\n> Engine hot-reloaded.`,
+        content: `> New Project Build Successful.\n> Engine hot-reloaded.`,
         agentRole: 'engineer'
       }]);
       
@@ -180,13 +168,51 @@ export default function App() {
     }
   };
 
+  // --- HANDLER 2: OPTIMIZATION (Optimize Modal) ---
+  // Triggers Iteration Pipeline only on existing code
+  const handleOptimizeRequest = async (input: string) => {
+      const userMsg: Message = { role: 'user', content: `[OPTIMIZE REQUEST] ${input}` };
+      setMessages(prev => [...prev, userMsg]);
+      
+      setGameState(prev => ({ ...prev, isGenerating: true }));
+      setOrchStage('refining');
+      setProcessingStatus('Engineer Agent is optimizing...');
+
+      try {
+        const newCode = await iterateGameCode(gameState.code, input, (status) => setProcessingStatus(status));
+        
+        setGameState(prev => ({
+            code: newCode,
+            isGenerating: false,
+            version: prev.version + 1
+        }));
+
+        setOrchStage('idle');
+        setMessages(prev => [...prev, { 
+            role: 'system', 
+            content: `> Optimization Applied.\n> Engine hot-reloaded.`,
+            agentRole: 'engineer'
+        }]);
+        
+        setActiveTab('preview');
+        setProcessingStatus('');
+
+      } catch (error) {
+        console.error(error);
+        setGameState(prev => ({ ...prev, isGenerating: false }));
+        setOrchStage('idle');
+        setProcessingStatus('');
+        setMessages(prev => [...prev, { role: 'system', content: 'Error: Optimization Failed.' }]);
+      }
+  };
+
   const handleManualCodeChange = (newCode: string) => {
     setGameState(prev => ({ ...prev, code: newCode }));
   };
 
   const handleOptimizeSubmit = () => {
     if (!optimizeInput.trim()) return;
-    handleSendMessage(`Optimize the game: ${optimizeInput}`);
+    handleOptimizeRequest(optimizeInput);
     setOptimizeInput('');
     setShowOptimizeModal(false);
   };
@@ -207,7 +233,7 @@ export default function App() {
       <div className="w-[450px] flex flex-col border-r border-zinc-800 z-10 shadow-xl">
         <ChatPanel 
           messages={messages} 
-          onSendMessage={handleSendMessage} 
+          onSendMessage={handleCreateNewGame} // Explicitly wired to Create New Game handler
           isLoading={gameState.isGenerating} 
           loadingStatus={processingStatus}
           stage={orchStage}
