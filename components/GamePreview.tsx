@@ -29,7 +29,8 @@ const createHostHTML = (aiScript: string) => {
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
-  body { margin: 0; overflow: hidden; background: #050505; color: #fff; font-family: monospace; touch-action: none; user-select: none; -webkit-user-select: none; }
+  /* Set background to transparent so we can see the Holo-Grid behind the iframe */
+  body { margin: 0; overflow: hidden; background: transparent; color: #fff; font-family: monospace; touch-action: none; user-select: none; -webkit-user-select: none; }
   canvas { display: block; touch-action: none; outline: none; }
   #err { position: fixed; top: 10px; left: 10px; color: #ff5555; background: rgba(0,0,0,0.8); padding: 10px; display: none; z-index: 1000; border: 1px solid #ff5555; }
   
@@ -273,22 +274,31 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ code }) => {
   }, [code]);
 
   return (
-    <div className="w-full h-full flex items-center justify-center bg-zinc-950/50 backdrop-blur-sm group">
-      <div className="w-full h-full relative">
+    <div className="w-full h-full relative holo-container bg-black group">
+      {/* 1. HOLO GRID FLOOR */}
+      <div className="holo-floor z-0 opacity-40"></div>
+      
+      {/* 2. ATMOSPHERIC GLOW */}
+      <div className="absolute inset-0 z-0 bg-gradient-to-t from-emerald-900/20 via-transparent to-transparent pointer-events-none"></div>
+
+      {/* 3. IFRAME (Transparent background allows grid to show through) */}
+      <div className="w-full h-full relative z-10">
         <iframe
           ref={iframeRef}
           title="Game Preview"
           srcDoc={srcDoc}
           className="w-full h-full border-none block"
+          style={{ background: 'transparent' }} 
           sandbox="allow-scripts allow-modals allow-pointer-lock allow-same-origin"
         />
+        
         {/* Overlay hint */}
         <div className="absolute top-4 left-4 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity">
            <div className="flex flex-col gap-2">
-              <span className="text-[10px] text-zinc-500 bg-black/80 px-2 py-1 rounded border border-zinc-800">
+              <span className="text-[10px] text-zinc-500 bg-black/80 px-2 py-1 rounded border border-zinc-800 backdrop-blur-sm">
                 ENGINE: HYBRID
               </span>
-              <span className="text-[10px] text-emerald-500 bg-black/80 px-2 py-1 rounded border border-emerald-500/20 animate-pulse">
+              <span className="text-[10px] text-emerald-500 bg-black/80 px-2 py-1 rounded border border-emerald-500/20 animate-pulse backdrop-blur-sm">
                 CLICK TO FOCUS
               </span>
            </div>
