@@ -1,6 +1,7 @@
 export interface Message {
   role: 'user' | 'system';
   content: string;
+  agentRole?: 'designer' | 'architect' | 'engineer'; // Optional metadata for UI styling
 }
 
 export interface GameState {
@@ -10,6 +11,8 @@ export interface GameState {
 }
 
 export type TabOption = 'preview' | 'code' | 'leaderboard';
+
+export type OrchestrationStage = 'idle' | 'designing' | 'architecting' | 'coding' | 'refining';
 
 export interface SavedGame {
   id: string;

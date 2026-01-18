@@ -13,7 +13,8 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "lucide-react": "^0.562.0",
-    "@neondatabase/serverless": "0.10.4"
+    "@neondatabase/serverless": "0.10.4",
+    "react-markdown": "9.0.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

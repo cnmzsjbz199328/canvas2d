@@ -4,33 +4,57 @@ import { CodeEditor } from './components/CodeEditor';
 import { ChatPanel } from './components/ChatPanel';
 import { Leaderboard } from './components/Leaderboard';
 import { SaveGameModal } from './components/SaveGameModal';
-import { generateGameCode, iterateGameCode } from './services/geminiService';
-import { Message, TabOption, GameState } from './types';
-import { Code, Play, Terminal, Cpu, Sparkles, X, Trophy, Save } from 'lucide-react';
+import { orchestrateGameGeneration, iterateGameCode } from './services/geminiService';
+import { Message, TabOption, GameState, OrchestrationStage } from './types';
+import { Code, Play, Terminal, Cpu, Sparkles, X, Trophy, Save, Layers, PenTool, Ruler } from 'lucide-react';
 
-// The new "Engine" format: Just the logic object
-const INITIAL_GAME_CODE = `{
+const INITIAL_GAME_CODE = `
+// Constants
+const SPEED = 200;
+const COLOR = '#00ffff';
+
+// Helper function defined OUTSIDE the return object
+function createParticle(x, y) {
+  return {
+    x: x, y: y,
+    vx: (Math.random()-0.5)*50, 
+    vy: (Math.random()-0.5)*50,
+    life: 1.0
+  };
+}
+
+return {
   init: (state, width, height) => {
-    state.player = { x: width/2, y: height/2, size: 20, color: '#00ffff' };
+    state.width = width;
+    state.height = height;
+    state.player = { x: width/2, y: height/2, size: 20, color: COLOR };
     state.particles = [];
     state.score = 0;
+    state.gameOver = false;
   },
   
   update: (state, input, dt) => {
+    // Restart Logic
+    if (state.gameOver) {
+        if (input.isDown) {
+            state.gameOver = false;
+            state.score = 0;
+            state.particles = [];
+            state.player.x = state.width / 2;
+            state.player.y = state.height / 2;
+        }
+        return;
+    }
+  
     // Movement
-    const speed = 200;
-    if (input.keys['ArrowUp'] || input.keys['KeyW']) state.player.y -= speed * dt;
-    if (input.keys['ArrowDown'] || input.keys['KeyS']) state.player.y += speed * dt;
-    if (input.keys['ArrowLeft'] || input.keys['KeyA']) state.player.x -= speed * dt;
-    if (input.keys['ArrowRight'] || input.keys['KeyD']) state.player.x += speed * dt;
+    if (input.keys['ArrowUp'] || input.keys['KeyW']) state.player.y -= SPEED * dt;
+    if (input.keys['ArrowDown'] || input.keys['KeyS']) state.player.y += SPEED * dt;
+    if (input.keys['ArrowLeft'] || input.keys['KeyA']) state.player.x -= SPEED * dt;
+    if (input.keys['ArrowRight'] || input.keys['KeyD']) state.player.x += SPEED * dt;
     
-    // Simple particle trail
+    // Use Helper Function
     if (Math.random() < 0.5) {
-      state.particles.push({
-        x: state.player.x, y: state.player.y,
-        vx: (Math.random()-0.5)*50, vy: (Math.random()-0.5)*50,
-        life: 1.0
-      });
+      state.particles.push(createParticle(state.player.x, state.player.y));
     }
     
     // Update particles
@@ -43,29 +67,31 @@ const INITIAL_GAME_CODE = `{
   },
   
   draw: (state, ctx, width, height) => {
-    // Background
     ctx.fillStyle = '#111';
     ctx.fillRect(0, 0, width, height);
     
-    // Draw Particles
     state.particles.forEach(p => {
       ctx.fillStyle = \`rgba(0, 255, 255, \${p.life})\`;
       ctx.fillRect(p.x, p.y, 4, 4);
     });
     
-    // Draw Player
-    ctx.fillStyle = state.player.color;
-    ctx.shadowBlur = 20;
-    ctx.shadowColor = state.player.color;
-    ctx.fillRect(state.player.x - 10, state.player.y - 10, 20, 20);
-    ctx.shadowBlur = 0;
+    if (!state.gameOver) {
+        ctx.fillStyle = state.player.color;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = state.player.color;
+        ctx.fillRect(state.player.x - 10, state.player.y - 10, 20, 20);
+        ctx.shadowBlur = 0;
+    }
     
-    // Text
     ctx.fillStyle = '#fff';
     ctx.font = '20px monospace';
-    ctx.fillText('SYSTEM READY. WASD TO MOVE.', 20, 40);
+    if (state.gameOver) {
+        ctx.fillText('GAME OVER - CLICK TO RESET', 20, 40);
+    } else {
+        ctx.fillText('SYSTEM READY. WASD TO MOVE.', 20, 40);
+    }
   }
-}`;
+};`;
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabOption>('preview');
@@ -74,9 +100,11 @@ export default function App() {
     isGenerating: false,
     version: 0
   });
+  const [orchStage, setOrchStage] = useState<OrchestrationStage>('idle');
+  const [processingStatus, setProcessingStatus] = useState<string>('');
   
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'system', content: 'Engine Core initialized. Ready to generate Game Logic Objects.\nType a command to begin (e.g., "create a space shooter").' }
+    { role: 'system', content: 'Engine Core initialized.\nMulti-Agent System Online: Designer (Flash Lite) -> Architect (3-Flash) -> Engineer (3-Flash).' }
   ]);
 
   const [showOptimizeModal, setShowOptimizeModal] = useState(false);
@@ -90,17 +118,41 @@ export default function App() {
     const userMsg: Message = { role: 'user', content: input };
     setMessages(prev => [...prev, userMsg]);
     setGameState(prev => ({ ...prev, isGenerating: true }));
+    setOrchStage('idle');
 
     try {
       let newCode = '';
       const isFirstGeneration = gameState.version === 0;
 
       if (isFirstGeneration) {
-        // Generate new game
-        newCode = await generateGameCode(input);
+        // FULL ORCHESTRATION PIPELINE
+        setOrchStage('designing');
+        setProcessingStatus('Designer Agent is brainstorming...');
+        
+        newCode = await orchestrateGameGeneration(input, (stage, content) => {
+            if (stage === 'designing') {
+                setOrchStage('designing');
+                setProcessingStatus('Drafting mechanics & lore...');
+            } else if (stage === 'design_complete') {
+                setMessages(prev => [...prev, { role: 'system', content: `DESIGN DOC:\n${content}`, agentRole: 'designer' }]);
+            } else if (stage === 'architecting') {
+                setOrchStage('architecting');
+                setProcessingStatus('Architect Agent is planning structure...');
+            } else if (stage === 'architect_complete') {
+                setMessages(prev => [...prev, { role: 'system', content: `TECH SPEC:\n${content}`, agentRole: 'architect' }]);
+            } else if (stage === 'coding') {
+                setOrchStage('coding');
+                setProcessingStatus('Engineer Agent is writing code...');
+            } else if (stage === 'coding_status') {
+                setProcessingStatus(content || 'Coding...');
+            }
+        });
+
       } else {
-        // Iterate on existing game
-        newCode = await iterateGameCode(gameState.code, input);
+        // ITERATION PIPELINE (Directly to Engineer)
+        setOrchStage('refining');
+        setProcessingStatus('Engineer Agent is optimizing...');
+        newCode = await iterateGameCode(gameState.code, input, (status) => setProcessingStatus(status));
       }
 
       setGameState({
@@ -109,18 +161,22 @@ export default function App() {
         version: gameState.version + 1
       });
 
+      setOrchStage('idle');
       setMessages(prev => [...prev, { 
         role: 'system', 
-        content: `> Task completed.\n> Generated ${newCode.length} bytes.\n> Engine hot-reloaded successfully.` 
+        content: `> Build Successful.\n> Engine hot-reloaded.`,
+        agentRole: 'engineer'
       }]);
       
-      // Auto-switch to preview on update
       setActiveTab('preview');
+      setProcessingStatus('');
 
     } catch (error) {
       console.error(error);
       setGameState(prev => ({ ...prev, isGenerating: false }));
-      setMessages(prev => [...prev, { role: 'system', content: 'Error: Failed to execute generation task.\nSee console for details.' }]);
+      setOrchStage('idle');
+      setProcessingStatus('');
+      setMessages(prev => [...prev, { role: 'system', content: 'Error: Agent Pipeline Failure.\nCheck console for trace.' }]);
     }
   };
 
@@ -139,7 +195,7 @@ export default function App() {
     setGameState(prev => ({
         ...prev,
         code: code,
-        version: prev.version + 1 // Increment version to trigger re-render
+        version: prev.version + 1
     }));
     setActiveTab('preview');
     setMessages(prev => [...prev, { role: 'system', content: '> Loaded game from database archive.' }]);
@@ -153,10 +209,12 @@ export default function App() {
           messages={messages} 
           onSendMessage={handleSendMessage} 
           isLoading={gameState.isGenerating} 
+          loadingStatus={processingStatus}
+          stage={orchStage}
         />
       </div>
 
-      {/* Main Content - Preview & Source */}
+      {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 bg-[#1e1e1e]">
         {/* Top Navigation Bar */}
         <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4 bg-[#141414]">
@@ -223,9 +281,22 @@ export default function App() {
              </div>
           </div>
           
-          <div className="flex items-center gap-2 text-xs text-zinc-500">
-            <div className={`w-2 h-2 rounded-full ${gameState.isGenerating ? 'bg-amber-500 animate-pulse' : 'bg-green-500'}`}></div>
-            <span>{gameState.isGenerating ? 'PROCESSING' : 'IDLE'}</span>
+          {/* Orchestration Status Indicators */}
+          <div className="flex items-center gap-3 text-xs">
+            <div className={`flex items-center gap-1 ${orchStage === 'designing' ? 'text-blue-400 font-bold animate-pulse' : 'text-zinc-700'}`}>
+                <PenTool size={10} />
+                <span>DESIGN</span>
+            </div>
+            <span className="text-zinc-800">→</span>
+            <div className={`flex items-center gap-1 ${orchStage === 'architecting' ? 'text-purple-400 font-bold animate-pulse' : 'text-zinc-700'}`}>
+                <Ruler size={10} />
+                <span>ARCHITECT</span>
+            </div>
+            <span className="text-zinc-800">→</span>
+            <div className={`flex items-center gap-1 ${orchStage === 'coding' ? 'text-emerald-400 font-bold animate-pulse' : 'text-zinc-700'}`}>
+                <Terminal size={10} />
+                <span>ENGINEER</span>
+            </div>
           </div>
         </div>
 
@@ -257,7 +328,7 @@ export default function App() {
                     </button>
                 </div>
                 <p className="text-xs text-zinc-500 mb-4">
-                    Describe how you want to improve the current game (e.g., "Add particle effects", "Make movement smoother", "Refactor variable names").
+                    Describe how you want to improve the current game. The Engineer agent will modify the code directly.
                 </p>
                 <textarea
                     autoFocus
@@ -270,7 +341,7 @@ export default function App() {
                       }
                     }}
                     className="w-full h-32 bg-black/50 border border-zinc-700 rounded p-3 text-sm text-zinc-300 focus:outline-none focus:border-amber-500 mb-4 resize-none placeholder-zinc-700"
-                    placeholder="E.g. Improve collision detection accuracy and add a screen shake effect on impact..."
+                    placeholder="E.g. Add a trailing effect to the player..."
                 />
                 <div className="flex justify-end gap-2">
                     <button 
