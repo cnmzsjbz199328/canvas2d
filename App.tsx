@@ -8,101 +8,19 @@ import { IntroSequence } from './components/IntroSequence';
 import { orchestrateGameGeneration, iterateGameCode } from './services/geminiService';
 import { Message, TabOption, GameState, OrchestrationStage } from './types';
 import { Code, Play, Terminal, Cpu, Sparkles, X, Trophy, Save, Layers, PenTool, Ruler } from 'lucide-react';
-
-const INITIAL_GAME_CODE = `
-// Constants
-const SPEED = 200;
-const COLOR = '#00ffff';
-
-// Helper function defined OUTSIDE the return object
-function createParticle(x, y) {
-  return {
-    x: x, y: y,
-    vx: (Math.random()-0.5)*50, 
-    vy: (Math.random()-0.5)*50,
-    life: 1.0
-  };
-}
-
-return {
-  init: (state, width, height) => {
-    state.width = width;
-    state.height = height;
-    state.player = { x: width/2, y: height/2, size: 20, color: COLOR };
-    state.particles = [];
-    state.score = 0;
-    state.gameOver = false;
-  },
-  
-  update: (state, input, dt) => {
-    // Restart Logic
-    if (state.gameOver) {
-        if (input.isDown) {
-            state.gameOver = false;
-            state.score = 0;
-            state.particles = [];
-            state.player.x = state.width / 2;
-            state.player.y = state.height / 2;
-        }
-        return;
-    }
-  
-    // Movement
-    if (input.keys['ArrowUp'] || input.keys['KeyW']) state.player.y -= SPEED * dt;
-    if (input.keys['ArrowDown'] || input.keys['KeyS']) state.player.y += SPEED * dt;
-    if (input.keys['ArrowLeft'] || input.keys['KeyA']) state.player.x -= SPEED * dt;
-    if (input.keys['ArrowRight'] || input.keys['KeyD']) state.player.x += SPEED * dt;
-    
-    // Use Helper Function
-    if (Math.random() < 0.5) {
-      state.particles.push(createParticle(state.player.x, state.player.y));
-    }
-    
-    // Update particles
-    state.particles.forEach(p => {
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.life -= dt * 2;
-    });
-    state.particles = state.particles.filter(p => p.life > 0);
-  },
-  
-  draw: (state, ctx, width, height) => {
-    // TRANSPARENCY: Clear rect instead of filling black 
-    // This allows the Holo-Grid background to show through!
-    ctx.clearRect(0, 0, width, height);
-    
-    state.particles.forEach(p => {
-      ctx.fillStyle = \`rgba(0, 255, 255, \${p.life})\`;
-      ctx.fillRect(p.x, p.y, 4, 4);
-    });
-    
-    if (!state.gameOver) {
-        ctx.fillStyle = state.player.color;
-        ctx.shadowBlur = 20;
-        ctx.shadowColor = state.player.color;
-        ctx.fillRect(state.player.x - 10, state.player.y - 10, 20, 20);
-        ctx.shadowBlur = 0;
-    }
-    
-    ctx.fillStyle = '#fff';
-    ctx.font = '20px monospace';
-    if (state.gameOver) {
-        ctx.fillText('GAME OVER - CLICK TO RESET', 20, 40);
-    } else {
-        ctx.fillText('SYSTEM READY. WASD TO MOVE.', 20, 40);
-    }
-  }
-};`;
+import { getRandomDemo } from './constants/demos';
 
 export default function App() {
   const [showIntro, setShowIntro] = useState(true); // Default to true to show animation
   const [activeTab, setActiveTab] = useState<TabOption>('preview');
-  const [gameState, setGameState] = useState<GameState>({
-    code: INITIAL_GAME_CODE,
+  
+  // Initialize with a random demo (Attract Mode)
+  const [gameState, setGameState] = useState<GameState>(() => ({
+    code: getRandomDemo(),
     isGenerating: false,
     version: 0
-  });
+  }));
+  
   const [orchStage, setOrchStage] = useState<OrchestrationStage>('idle');
   const [processingStatus, setProcessingStatus] = useState<string>('');
   
