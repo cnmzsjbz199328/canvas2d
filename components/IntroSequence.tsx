@@ -80,20 +80,20 @@ export const IntroSequence: React.FC<IntroSequenceProps> = ({ onComplete }) => {
 
   return (
     <div className="fixed inset-0 z-[100] bg-black font-mono flex flex-col items-center justify-center select-none cursor-wait">
-      <div className="w-full max-w-2xl px-8">
+      <div className="w-full max-w-4xl px-8">
         
         {/* LOGS AREA */}
         {phase === 'logging' && (
-          <div className="h-64 flex flex-col justify-end items-start mb-8 text-xs md:text-sm text-zinc-500 font-bold tracking-wider space-y-1">
+          <div className="h-80 flex flex-col justify-end items-start mb-8 text-sm md:text-xl text-zinc-500 font-bold tracking-wider space-y-2">
             {logs.map((log, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-emerald-900">{`>`}</span>
+              <div key={i} className="flex items-center gap-3">
+                <span className="text-emerald-900 font-black">{`>`}</span>
                 <span className={i === logs.length - 1 ? "text-emerald-400" : "text-zinc-600"}>
                   {log}
                 </span>
               </div>
             ))}
-            <div className="animate-pulse text-emerald-500">_</div>
+            <div className="animate-pulse text-emerald-500 text-2xl">_</div>
           </div>
         )}
 
@@ -101,30 +101,30 @@ export const IntroSequence: React.FC<IntroSequenceProps> = ({ onComplete }) => {
         {phase === 'title' && (
           <div className="flex flex-col items-center animate-in zoom-in-95 duration-500">
             <h1 
-              className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-8 glitch-wrapper text-center"
+              className="text-6xl md:text-8xl font-black text-white tracking-tighter mb-12 glitch-wrapper text-center leading-tight"
               data-text="CANVAS 2D GENERATOR"
             >
               CANVAS 2D GENERATOR
             </h1>
 
             {/* PROGRESS BAR */}
-            <div className="w-full h-1 bg-zinc-900 rounded-full overflow-hidden relative max-w-md">
+            <div className="w-full h-2 bg-zinc-900 rounded-full overflow-hidden relative max-w-2xl">
               <div 
-                className="h-full bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.8)] transition-all duration-75 ease-out"
+                className="h-full bg-emerald-500 shadow-[0_0_20px_rgba(16,185,129,1)] transition-all duration-75 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
             
-            <div className="mt-2 flex justify-between w-full max-w-md text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
+            <div className="mt-4 flex justify-between w-full max-w-2xl text-xs md:text-base text-zinc-500 font-bold uppercase tracking-[0.2em]">
                 <span>System Loading</span>
-                <span>{Math.floor(progress)}%</span>
+                <span className="text-emerald-500">{Math.floor(progress)}%</span>
             </div>
           </div>
         )}
       </div>
       
       {/* Footer Decoration */}
-      <div className="absolute bottom-8 text-[10px] text-zinc-800 uppercase tracking-[0.3em]">
+      <div className="absolute bottom-12 text-xs md:text-sm text-zinc-800 uppercase tracking-[0.4em] font-bold">
         Proprietary Neural Interface v2.0
       </div>
     </div>

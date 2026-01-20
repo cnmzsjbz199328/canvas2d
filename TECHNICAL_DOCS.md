@@ -1,63 +1,110 @@
-# Canvas 2D 游戏生成器开发文档
+# Canvas 2D Game Generator (GenAI Native)
 
-## 1. 核心架构设计 (Architecture)
+> **Status:** Active / Experimental
+> **Engine:** Google Gemini 3 (Flash Lite + Flash Preview)
+> **Stack:** React 19, Tailwind, Neon Serverless Postgres
 
-本项目采用 **"Agentic Loop" (代理循环)** 模式，并将代码生成架构升级为 **"Host + Script" (宿主+脚本)** 引擎模式。
+## 1. Project Overview
 
-### 1.1 宿主引擎模式 (The Host Engine Pattern)
-系统不再生成完整的 HTML 文件，而是生成纯 JavaScript 逻辑对象。
+**Canvas 2D Game Generator** is a natural language interface that turns text descriptions into playable HTML5 Canvas games in seconds. It leverages a **Multi-Agent System** to break down complex game requests into structured design documents, technical specifications, and finally, executable JavaScript code.
 
-*   **Host (宿主)**: `GamePreview.tsx` 中内置了一个固定的 HTML 模板。它负责：
-    *   管理 `<canvas>` DOM 元素。
-    *   归一化输入事件 (Mouse/Touch/Keyboard) 为统一的 `input` 对象。
-    *   运行 `requestAnimationFrame` 游戏循环。
-    *   错误捕获与显示。
-*   **Script (脚本)**: Gemini 生成的仅仅是游戏逻辑，必须包含三个核心方法：
-    *   `init(state, width, height)`: 初始化状态。
-    *   `update(state, input, dt)`: 处理逻辑更新。
-    *   `draw(state, ctx, width, height)`: 处理渲染。
-
-*   **优势**：
-    *   **Token 效率**：模型不再需要重复生成 CSS、HTML 样板和基础事件监听代码。
-    *   **统一体验**：所有游戏共享相同的输入系统和循环逻辑，确保手感一致。
-    *   **兼容性**：支持混合模式，既可以运行新的脚本对象，也能向后兼容旧的 HTML 完整文件（通过检测 `<!DOCTYPE html>`）。
-
-### 1.2 状态隔离的沙箱 (Stateless Sandboxing)
-尽管迁移到了脚本模式，预览组件仍使用 `iframe` 的 `srcDoc` 属性进行渲染。
-
-*   **技术细节**：每当代码更新版本号 (`version`) 增加时，React 会重新构建 `srcDoc` 字符串（将 AI 脚本注入到 Host 模板中），并销毁重建 iframe。
-*   **必要性**：确保旧的 JS 对象、内存和闭包被彻底清理，防止游戏逻辑重叠。
+The application features a "Cyberpunk / Retro-Terminal" aesthetic, complete with a self-playing "Attract Mode" (AI Snake), global leaderboards, and code transparency.
 
 ---
 
-## 2. Gemini 模型策略 (Gemini Strategy)
+## 2. Core Features
 
-本项目的高成功率主要归功于对 **Gemini 3 Pro** 特性的深度利用。
+### 🎮 Multi-Agent Orchestration
+Instead of a single prompt, the system uses a pipeline of specialized agents:
+1.  **Designer Agent (Flash Lite)**: Brainstorms mechanics, visual style, and "fun factors."
+2.  **Architect Agent (3-Flash)**: Converts the design into a strict Technical Specification (JSON structure, State management).
+3.  **Engineer Agent (3-Flash)**: Writes the actual implementation using a "Thinking Budget" to solve complex logic before coding.
 
-### 2.1 Thinking Budget (思维预算)
-在 `services/geminiService.ts` 中，我们配置了 `thinkingConfig: { thinkingBudget: 2048 }`。
+### ⚡ The "Host Engine" Architecture
+To ensure performance and security, games are **not** generated as full HTML files.
+*   **The Host**: A fixed React component (`GamePreview`) that handles the DOM, `requestAnimationFrame`, and Input Normalization (Mouse/Touch/Keyboard).
+*   **The Script**: The AI generates *only* a standardized JS object (`{ init, update, draw }`).
+*   **Hot Reloading**: The engine injects the new script into a sandboxed `iframe` instantly.
 
-*   **原理**：Canvas 游戏开发属于复杂的逻辑任务。Gemini 3 Pro 在 Thinking 阶段会预先规划状态结构（`state` 对象的设计），然后再编写具体的 `update` 逻辑。
-*   **效果**：显著减少了变量未定义的错误，并提高了物理计算的准确性。
-
-### 2.2 结构化输出 (Structured Output via Prompting)
-提示词严格限制模型只输出 JS 对象字面量。
-
-*   **Prompt 示例**：
-    > "DO NOT output HTML. Output ONLY a valid JavaScript object literal... The object MUST strictly adhere to this interface: { init, update, draw }"
-*   **鲁棒性**：即使模型偶尔输出了 Markdown 代码块，前端服务层也会自动清洗，提取纯代码。
+### 💾 Persistence & Community
+*   **Neon Serverless DB**: Stores game code and metadata.
+*   **Global Leaderboard**: Browse, play, and "Like" games created by others.
+*   **Optimization Loop**: Users can ask the AI to "Iterate" or "Optimize" an existing game (e.g., "Make the player faster", "Add particle effects").
 
 ---
 
-## 3. 数据库集成 (Database Integration)
+## 3. UI/UX & Motion Design
 
-项目集成了 Neon (Serverless PostgreSQL) 用于持久化存储。
+### 🚀 Recording-Friendly Intro Sequence
+To support high-quality content creation and screen recording, the boot sequence uses an **oversized typography** system:
 
-*   **表结构**：`SavedGame` 表存储了游戏的元数据和代码字符串。
-*   **混合存储**：`code` 字段既可以是旧版的 HTML 字符串，也可以是新版的 JS 对象字符串。前端根据内容自动判断渲染模式。
+*   **Logging Phase**: Uses `text-xl` (20px+) for terminal logs, ensuring technical text is legible even on compressed video streams.
+*   **Title Phase**: The main brand header scales to `text-8xl` (96px+) with a high-contrast white/emerald color palette.
+*   **Glitch Layer**: A `clip-path` based CSS animation simulates visual interference without affecting text sharpess.
+*   **Timing**: A 3-phase state machine (`logging` -> `title` -> `exit`) ensures a consistent 3.5s transition into the main app.
 
-## 4. UI/UX 设计理念
+### 🎨 Visual Theme: "Deep Cyber"
+*   **Holo-Grid**: A CSS 3D transform animation (`rotateX(70deg)`) creates a moving floor effect behind the game canvas.
+*   **Leaderboard Strips**: High-end ranking board design with distinct visual hierarchies for Top 3 (Gold/Silver/Bronze) using glow filters and custom SVG medals.
+*   **Terminal Interface**: The chat panel mimics a developer console, showing the internal monologue of the agent system using `ReactMarkdown` for structured data.
 
-*   **左侧终端 (Agent Terminal)**：展示"思考过程"，强化 AI 代理感。
-*   **右侧即时反馈 (Preview)**：代码与视觉的一一对应。
-*   **Code Mode**：现在展示的是干净的业务逻辑代码，而非杂乱的 HTML 标签，方便开发者阅读和学习。
+---
+
+## 4. Technical Architecture
+
+### 4.1 The Engine Contract
+The AI is strictly forbidden from touching the DOM. It must adhere to this interface:
+
+```javascript
+return {
+    // Called once on load or resize
+    init: (state, width, height) => {
+        state.player = { x: width/2, y: height/2 };
+        state.score = 0;
+    },
+
+    // Called ~60 times per second
+    // dt is Delta Time in seconds (e.g., 0.016)
+    update: (state, input, dt) => {
+        if (input.keys['ArrowUp']) state.player.y -= 100 * dt;
+        if (input.isDown) fireLaser(state);
+    },
+
+    // Render logic
+    draw: (state, ctx, width, height) => {
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, width, height);
+        // ... draw game ...
+    }
+};
+```
+
+### 4.2 Sandboxing Strategy
+*   **Execution**: Code is serialized and injected into a `srcDoc` iframe.
+*   **Input Normalization**: A unified `input` object (`x, y, isDown, keys`) ensures cross-platform compatibility (Touch/Mouse).
+*   **Error Handling**: Runtime errors in the generated code are caught by a global `window.onerror` in the host template and displayed as a red debug overlay.
+
+---
+
+## 5. Gemini Model Configuration
+
+| Agent | Model | Config | Role |
+| :--- | :--- | :--- | :--- |
+| **Designer** | `gemini-flash-lite-latest` | `temp: 0.7` | High creativity, low latency. |
+| **Architect** | `gemini-3-flash-preview` | `temp: 0.2` | High structural precision. |
+| **Engineer** | `gemini-3-flash-preview` | `thinkingBudget: 2048` | Math & physics logic solver. |
+
+---
+
+## 6. Database Schema (Neon Postgres)
+
+```sql
+CREATE TABLE "SavedGame" (
+  id UUID PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  code TEXT NOT NULL, 
+  likes INTEGER DEFAULT 0,
+  "createdAt" TIMESTAMP DEFAULT NOW()
+);
+```

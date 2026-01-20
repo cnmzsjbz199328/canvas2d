@@ -267,7 +267,13 @@ export default function App() {
           {/* Content Area */}
           <div className="flex-1 relative overflow-hidden animate-in fade-in zoom-in-95 duration-1000 delay-700">
             {activeTab === 'preview' && (
-              <GamePreview code={gameState.code} key={gameState.version} />
+              <GamePreview 
+                code={gameState.code} 
+                // CRITICAL FIX: Changing the key when showIntro changes forces the component to remount.
+                // This ensures the iframe initializes ONLY when the container is visible (opacity: 1).
+                // If it initializes while hidden (opacity: 0), window.innerWidth is 0, crashing grid calculations.
+                key={`${gameState.version}-${showIntro ? 'hidden' : 'visible'}`} 
+              />
             )}
             {activeTab === 'code' && (
                <CodeEditor code={gameState.code} onChange={handleManualCodeChange} />
