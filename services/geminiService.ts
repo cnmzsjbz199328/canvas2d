@@ -81,7 +81,7 @@ CODE:
 
 3. **Core Classes (Conditional Injection)**:
    - **Vector**: Available globally. **Mutable & Chainable**.
-     *   Methods: \`add(v), sub(v), multiply(s), divide(s), mag(), normalize(), dist(v), copy()\`. 
+     *   API: \`add(v), sub(v), mult(s), div(s), mag(), limit(max), normalize(), heading(), rotate(rad), lerp(v, t), dist(v), copy()\`.
      *   *Example*: \`pos.add(vel)\` modifies \`pos\` in place. Use \`copy()\` if you need to preserve original.
    - **COLORS**: Available globally: \`{ BG, PLAYER, ENEMY, ACCENT, TEXT }\`. Use these for consistent retro styling.
    - **NO GameObject**: The environment **DOES NOT** provide a GameObject base class. You MUST define your own entities (e.g., \`const player = { pos: new Vector(0,0), size: 10, ... }\`).

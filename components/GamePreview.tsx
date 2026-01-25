@@ -4,8 +4,9 @@ interface GamePreviewProps {
   code: string;
 }
 
-// --- STANDARD LIBRARY V2.0 ---
+// --- STANDARD LIBRARY V2.1 ---
 // Injected only if the user code doesn't define them.
+
 const STANDARD_LIB_COLORS = `
 const COLORS = { 
     BG: '#050505', 
@@ -18,17 +19,110 @@ const COLORS = {
 
 const STANDARD_LIB_VECTOR = `
 class Vector {
-    constructor(x=0, y=0) { this.x = x; this.y = y; }
+    constructor(x = 0, y = 0) {
+        this.x = x;
+        this.y = y;
+    }
+    
+    // Basic Arithmetic
     add(v) { this.x += v.x; this.y += v.y; return this; }
     sub(v) { this.x -= v.x; this.y -= v.y; return this; }
-    multiply(s) { this.x *= s; this.y *= s; return this; } // In-place
-    scale(s) { this.x *= s; this.y *= s; return this; } // Alias for consistency
-    divide(s) { if(s!==0) { this.x /= s; this.y /= s; } return this; }
-    mag() { return Math.sqrt(this.x*this.x + this.y*this.y); }
-    normalize() { const m = this.mag(); if(m>0) this.divide(m); return this; }
-    dist(v) { const dx = this.x - v.x; const dy = this.y - v.y; return Math.sqrt(dx*dx + dy*dy); }
+    
+    multiply(s) { this.x *= s; this.y *= s; return this; }
+    mult(s) { return this.multiply(s); } // Alias for AI consistency
+    multiplyScalar(s) { return this.multiply(s); }
+    scale(s) { return this.multiply(s); }
+    
+    divide(s) { if (s !== 0) { this.x /= s; this.y /= s; } return this; }
+    div(s) { return this.divide(s); } // Alias for AI consistency
+
+    // Magnitude & Normalization
+    mag() { return Math.sqrt(this.x * this.x + this.y * this.y); }
+    magSq() { return this.x * this.x + this.y * this.y; }
+    
+    normalize() { 
+        const m = this.mag(); 
+        if (m > 0) this.divide(m); 
+        return this; 
+    }
+    
+    setMag(n) { return this.normalize().multiply(n); }
+    limit(max) { if (this.magSq() > max * max) this.setMag(max); return this; }
+    
+    // Direction & Rotation
+    heading() { return Math.atan2(this.y, this.x); }
+    rotate(angle) {
+        const newHeading = this.heading() + angle;
+        const mag = this.mag();
+        this.x = Math.cos(newHeading) * mag;
+        this.y = Math.sin(newHeading) * mag;
+        return this;
+    }
+
+    // Relationship
+    dist(v) { 
+        const dx = this.x - v.x; 
+        const dy = this.y - v.y; 
+        return Math.sqrt(dx * dx + dy * dy); 
+    }
+    distSq(v) {
+        const dx = this.x - v.x; 
+        const dy = this.y - v.y; 
+        return dx * dx + dy * dy;
+    }
+    
+    dot(v) { return this.x * v.x + this.y * v.y; }
+    cross(v) { return this.x * v.y - this.y * v.x; }
+    
+    angleBetween(v) {
+        const dot = this.dot(v);
+        const val = Math.max(-1, Math.min(1, dot / (this.mag() * v.mag())));
+        return Math.acos(val);
+    }
+    
+    lerp(v, amt) {
+        this.x += (v.x - this.x) * amt;
+        this.y += (v.y - this.y) * amt;
+        return this;
+    }
+
     copy() { return new Vector(this.x, this.y); }
-    static distance(v1, v2) { return v1.dist(v2); }
+    
+    // Static Utilities
+    static distance(v1, v2) { return Math.sqrt(Math.pow(v1.x - v2.x, 2) + Math.pow(v1.y - v2.y, 2)); }
+    static add(v1, v2) { return new Vector(v1.x + v2.x, v1.y + v2.y); }
+    static sub(v1, v2) { return new Vector(v1.x - v2.x, v1.y - v2.y); }
+    static random2D() { const a = Math.random() * Math.PI * 2; return new Vector(Math.cos(a), Math.sin(a)); }
+    static fromAngle(angle, length = 1) { return new Vector(length * Math.cos(angle), length * Math.sin(angle)); }
+}
+`;
+
+const STANDARD_LIB_GAMEOBJECT = `
+class GameObject {
+    constructor(x, y, radius = 10, color = '#ffffff') {
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.color = color;
+        this.active = true;
+        this.velocity = new Vector(0, 0);
+    }
+    
+    update(dt, state, w, h) {
+        if (!this.active) return;
+        this.x += this.velocity.x * dt;
+        this.y += this.velocity.y * dt;
+    }
+    
+    draw(ctx) {
+        if (!this.active) return;
+        ctx.save();
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
 }
 `;
 
@@ -50,10 +144,13 @@ const createHostHTML = (aiScript: string) => {
   // --- SANDBOX 2.0 CONDITIONAL INJECTION ---
   const hasVector = /class\s+Vector\b/.test(aiScript);
   const hasColors = /const\s+COLORS\b/.test(aiScript);
+  const hasGameObject = /class\s+GameObject\b/.test(aiScript);
   
   let injection = "";
   if (!hasColors) injection += STANDARD_LIB_COLORS;
   if (!hasVector) injection += STANDARD_LIB_VECTOR;
+  // Fallback: If AI uses GameObject but forgets to define it, we provide it.
+  if (!hasGameObject) injection += STANDARD_LIB_GAMEOBJECT;
 
   // Serialize the code to a JSON string literal.
   const serializedScript = JSON.stringify(aiScript)
