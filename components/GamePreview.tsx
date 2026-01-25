@@ -4,19 +4,56 @@ interface GamePreviewProps {
   code: string;
 }
 
+// --- STANDARD LIBRARY V2.0 ---
+// Injected only if the user code doesn't define them.
+const STANDARD_LIB_COLORS = `
+const COLORS = { 
+    BG: '#050505', 
+    PLAYER: '#00ffff', 
+    ENEMY: '#ff3366', 
+    ACCENT: '#ffcc00', 
+    TEXT: '#ffffff' 
+};
+`;
+
+const STANDARD_LIB_VECTOR = `
+class Vector {
+    constructor(x=0, y=0) { this.x = x; this.y = y; }
+    add(v) { this.x += v.x; this.y += v.y; return this; }
+    sub(v) { this.x -= v.x; this.y -= v.y; return this; }
+    multiply(s) { this.x *= s; this.y *= s; return this; } // In-place
+    scale(s) { this.x *= s; this.y *= s; return this; } // Alias for consistency
+    divide(s) { if(s!==0) { this.x /= s; this.y /= s; } return this; }
+    mag() { return Math.sqrt(this.x*this.x + this.y*this.y); }
+    normalize() { const m = this.mag(); if(m>0) this.divide(m); return this; }
+    dist(v) { const dx = this.x - v.x; const dy = this.y - v.y; return Math.sqrt(dx*dx + dy*dy); }
+    copy() { return new Vector(this.x, this.y); }
+    static distance(v1, v2) { return v1.dist(v2); }
+}
+`;
+
 /**
  * The HOST TEMPLATE is the fixed engine code that runs the variable AI script.
  * It handles:
  * 1. Canvas setup & Resizing
  * 2. Input normalization (Mouse/Touch/Keyboard)
- * 3. Game Loop (requestAnimationFrame)
- * 4. Error handling
+ * 3. Conditional Injection (Sandbox 2.0)
+ * 4. Game Loop (requestAnimationFrame)
+ * 5. Error handling
  */
 const createHostHTML = (aiScript: string) => {
   // If the code is already a full HTML document (legacy/database support), return it as is.
   if (aiScript.trim().startsWith('<!DOCTYPE html>') || aiScript.trim().startsWith('<html')) {
     return aiScript;
   }
+
+  // --- SANDBOX 2.0 CONDITIONAL INJECTION ---
+  const hasVector = /class\s+Vector\b/.test(aiScript);
+  const hasColors = /const\s+COLORS\b/.test(aiScript);
+  
+  let injection = "";
+  if (!hasColors) injection += STANDARD_LIB_COLORS;
+  if (!hasVector) injection += STANDARD_LIB_VECTOR;
 
   // Serialize the code to a JSON string literal.
   const serializedScript = JSON.stringify(aiScript)
@@ -103,8 +140,10 @@ const createHostHTML = (aiScript: string) => {
 </div>
 
 <script>
+// --- STANDARD LIBRARY INJECTION ---
+${injection}
+
 // --- FOCUS MANAGEMENT ---
-// Critical for keyboard events to work immediately
 window.onload = () => {
     window.focus();
     document.getElementById('c').focus();
@@ -296,7 +335,7 @@ export const GamePreview: React.FC<GamePreviewProps> = ({ code }) => {
         <div className="absolute top-4 left-4 pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity">
            <div className="flex flex-col gap-2">
               <span className="text-[10px] text-zinc-500 bg-black/80 px-2 py-1 rounded border border-zinc-800 backdrop-blur-sm">
-                ENGINE: HYBRID
+                ENGINE: SANDBOX 2.0
               </span>
               <span className="text-[10px] text-emerald-500 bg-black/80 px-2 py-1 rounded border border-emerald-500/20 animate-pulse backdrop-blur-sm">
                 CLICK TO FOCUS

@@ -4,14 +4,16 @@ import { saveGame } from '../services/dbService';
 
 interface SaveGameModalProps {
   code: string;
+  initialTitle?: string;
+  initialDescription?: string;
   onClose: () => void;
   onSuccess: () => void;
 }
 
-export const SaveGameModal: React.FC<SaveGameModalProps> = ({ code, onClose, onSuccess }) => {
-  const [title, setTitle] = useState('');
+export const SaveGameModal: React.FC<SaveGameModalProps> = ({ code, initialTitle, initialDescription, onClose, onSuccess }) => {
+  const [title, setTitle] = useState(initialTitle || '');
   const [author, setAuthor] = useState('');
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(initialDescription || '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 

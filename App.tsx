@@ -17,6 +17,8 @@ export default function App() {
   // Initialize with a random demo (Attract Mode)
   const [gameState, setGameState] = useState<GameState>(() => ({
     code: getRandomDemo(),
+    title: "Demo Snake",
+    description: "An automated data runner visualization.",
     isGenerating: false,
     version: 0
   }));
@@ -43,7 +45,7 @@ export default function App() {
     setProcessingStatus('Designer Agent is brainstorming...');
 
     try {
-        const newCode = await orchestrateGameGeneration(input, (stage, content) => {
+        const result = await orchestrateGameGeneration(input, (stage, content) => {
             if (stage === 'designing') {
                 setOrchStage('designing');
                 setProcessingStatus('Drafting mechanics & lore...');
@@ -63,7 +65,9 @@ export default function App() {
         });
 
       setGameState(prev => ({
-        code: newCode,
+        code: result.code,
+        title: result.title,
+        description: result.description,
         isGenerating: false,
         version: prev.version + 1
       }));
@@ -100,6 +104,7 @@ export default function App() {
         const newCode = await iterateGameCode(gameState.code, input, (status) => setProcessingStatus(status));
         
         setGameState(prev => ({
+            ...prev,
             code: newCode,
             isGenerating: false,
             version: prev.version + 1
@@ -337,6 +342,8 @@ export default function App() {
       {showSaveModal && (
         <SaveGameModal 
             code={gameState.code} 
+            initialTitle={gameState.title}
+            initialDescription={gameState.description}
             onClose={() => setShowSaveModal(false)}
             onSuccess={() => {
                 setMessages(prev => [...prev, { role: 'system', content: '> Game saved to Global Database successfully.' }]);

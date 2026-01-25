@@ -6,6 +6,8 @@ export interface Message {
 
 export interface GameState {
   code: string;
+  title?: string;
+  description?: string;
   isGenerating: boolean;
   version: number;
 }
