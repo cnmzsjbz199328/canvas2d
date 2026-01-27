@@ -12,8 +12,9 @@ Your goal is to take a simple user request and expand it into a Creative Game Co
 
 CONSTRAINTS:
 1. **Pure Canvas 2D**: NO HTML Elements (buttons, inputs, divs). Everything must be drawn on screen.
-2. **Procedural Assets**: NO external images or sounds. All visuals must be drawn with shapes (rects, arcs, paths).
+2. **Procedural Assets**: NO external images. All visuals must be drawn with shapes.
 3. **Controls**: Optimized for Keyboard (Arrows/WASD) and Mouse (Click/Aim).
+4. **Audio**: Plan for sound effects (Shoot, Hit, Jump, Collect, Explosion).
 
 Output a concise design document:
 1. Game Title (Catchy)
@@ -39,6 +40,7 @@ Your output is a TECHNICAL SPECIFICATION for the Engineer.
 5. **Globals**: 
    - \`Vector\` class is provided (Mutable/Chainable).
    - \`COLORS\` object is provided.
+   - \`sfx\` object is provided (Audio).
 -----------------------------------
 
 Define:
@@ -46,7 +48,9 @@ Define:
 2. Helper Functions list (Math helpers, Collision checks).
    *NOTE: Do not specify a Vector class, it is built-in.*
 3. The Logic Flow for 'update' (Movement, Physics, Win/Loss conditions).
+   *IMPORTANT: Specify where to play sound effects (e.g., "Play 'shoot' sound on fire").*
 4. The Logic Flow for 'draw' (Render order, Shapes, **REQUIRED: On-screen Instructions**).
+   *NOTE: Do not use input logic here. Only rendering based on state.*
 
 DO NOT write code. Write structure and requirements.
 `;
@@ -81,17 +85,30 @@ CODE:
 
 3. **Core Classes (Conditional Injection)**:
    - **Vector**: Available globally. **Mutable & Chainable**.
-     *   API: \`add(v), sub(v), mult(s), div(s), mag(), limit(max), normalize(), heading(), rotate(rad), lerp(v, t), dist(v), copy()\`.
+     *   API: \`set(x,y)\`, \`add(v)\`, \`sub(v)\`, \`mult(s)\`, \`div(s)\`, \`mag()\`, \`limit(max)\`, \`normalize()\`, \`heading()\`, \`rotate(rad)\`, \`lerp(v, t)\`, \`dist(v)\`, \`copy()\`.
      *   *Example*: \`pos.add(vel)\` modifies \`pos\` in place. Use \`copy()\` if you need to preserve original.
-   - **COLORS**: Available globally: \`{ BG, PLAYER, ENEMY, ACCENT, TEXT }\`. Use these for consistent retro styling.
-   - **NO GameObject**: The environment **DOES NOT** provide a GameObject base class. You MUST define your own entities (e.g., \`const player = { pos: new Vector(0,0), size: 10, ... }\`).
+   - **COLORS**: Available globally: \`{ BG, PLAYER, ENEMY, ACCENT, TEXT }\`.
+   - **sfx**: Available globally for Audio.
+     *   API: \`sfx.play(type)\`
+     *   Types: \`'shoot'\`, \`'hit'\`, \`'jump'\`, \`'collect'\`, \`'explosion'\`.
+     *   *Usage*: Call inside \`update\` when an event occurs.
 
-4. **Input Handling**:
+4. **CRITICAL: State Management**:
+   - **NO Global State**: Do NOT define a top-level \`const state = ...\`. The \`state\` object is passed into \`init\`.
+   - **Initialization**: You MUST initialize ALL game variables (arrays, player, score, etc.) INSIDE the \`init\` function attached to the \`state\` argument.
+
+5. **Input Handling**:
    - Keyboard: \`if (input.keys['ArrowUp'] || input.keys['KeyW']) ...\`
    - Mouse: \`state.player.x = input.x;\`
 
-5. **UX Requirement**:
+6. **UX Requirement**:
    - The game MUST draw text instructions on the screen (e.g., "WASD to Move", "Click to Start") in the \`draw\` function so the user knows how to play.
+
+7. **Strict MVC Separation**:
+   - **NEVER** use \`input\` inside the \`draw\` function.
+   - Perform all hover/click detection in \`update\`.
+   - Store visual states (e.g., \`state.isHovered\`) in \`state\`.
+   - \`draw\` should ONLY render based on \`state\`.
 `;
 
 // --- HELPERS ---
@@ -106,13 +123,21 @@ const validateCode = (code: string): string[] => {
   if (!cleanCode.includes('return {') || !cleanCode.includes('init:') || !cleanCode.includes('update:') || !cleanCode.includes('draw:')) {
     errors.push("Code must return an object with init, update, and draw methods.");
   }
+  
+  // MVC Validation
   const drawIndex = cleanCode.indexOf('draw:');
   if (drawIndex !== -1) {
     const drawBlock = cleanCode.slice(drawIndex);
     if (/\binput\./.test(drawBlock)) {
-      errors.push("MVC Violation: 'input' accessed inside 'draw' function. Move input logic to 'update'.");
+      errors.push("MVC Violation: 'input' accessed inside 'draw' function. You MUST move interaction logic (hover/click) to 'update' and store the result in 'state'.");
     }
   }
+
+  // State Definition Validation (New)
+  if (/const\s+state\s*=\s*{/.test(cleanCode) || /let\s+state\s*=\s*{/.test(cleanCode)) {
+      errors.push("Global 'state' definition detected. You must initialize properties INSIDE the 'init' function using the provided 'state' argument.");
+  }
+
   if (/document\.create/.test(cleanCode) || /document\.get/.test(cleanCode)) {
     errors.push("DOM Manipulation detected. Use Canvas API only (ctx.fillRect, etc).");
   }
