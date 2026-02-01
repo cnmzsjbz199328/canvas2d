@@ -148,12 +148,15 @@ window.onerror = function(msg, url, line) {
 // --- ENGINE CORE ---
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
-let width, height;
+
+// CRITICAL: Safe defaults to prevent 'non-finite' errors in iframes before layout
+let width = 800;
+let height = 600;
 
 // Input System
 const input = { 
-  x: 0, 
-  y: 0, 
+  x: width / 2, // Start in center to prevent 0,0 math errors
+  y: height / 2, 
   isDown: false, 
   keys: {} 
 };
@@ -161,7 +164,11 @@ input.pointer = input;
 input.mouse = input;
 
 // Event Listeners (Desktop)
-window.addEventListener('mousemove', e => { input.x = e.clientX; input.y = e.clientY; });
+window.addEventListener('mousemove', e => { 
+    // We store raw values here, but clamp them in the loop
+    input.x = e.clientX; 
+    input.y = e.clientY; 
+});
 window.addEventListener('mousedown', () => { input.isDown = true; window.focus(); });
 window.addEventListener('mouseup', () => input.isDown = false);
 window.addEventListener('keydown', e => input.keys[e.key] = true);
@@ -210,13 +217,23 @@ canvas.addEventListener('touchmove', touchHandler, {passive: false});
 canvas.addEventListener('touchend', touchHandler, {passive: false});
 
 
-// Resize Handler
-function resize() {
-  width = canvas.width = window.innerWidth;
-  height = canvas.height = window.innerHeight;
-}
-window.addEventListener('resize', resize);
-resize();
+// Resize Handler (ResizeObserver for robust Iframe support)
+const resizeObserver = new ResizeObserver(entries => {
+  for (const entry of entries) {
+    // Check ContentRect for actual size
+    const w = entry.contentRect.width;
+    const h = entry.contentRect.height;
+    if (w > 0 && h > 0) {
+        width = canvas.width = w;
+        height = canvas.height = h;
+    }
+  }
+});
+resizeObserver.observe(document.body);
+// Initial trigger
+width = canvas.width = window.innerWidth || 800;
+height = canvas.height = window.innerHeight || 600;
+
 
 // --- LOADER STRATEGY ---
 let gameLogic;
@@ -247,9 +264,12 @@ try {
 const state = {};
 let lastTime = performance.now();
 
+// Initial call safety check
 if (gameLogic && gameLogic.init) {
   try {
-    gameLogic.init(state, width, height);
+    const safeW = (Number.isFinite(width) && width > 0) ? width : 800;
+    const safeH = (Number.isFinite(height) && height > 0) ? height : 600;
+    gameLogic.init(state, safeW, safeH);
   } catch (e) {
     console.error(e);
     window.onerror(e.message, null, null);
@@ -257,11 +277,25 @@ if (gameLogic && gameLogic.init) {
 }
 
 function loop(timestamp) {
-  const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+  // Cap dt to 0.05 (20fps) to prevent tunneling on lag spikes
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
   lastTime = timestamp;
 
   try {
-    if (gameLogic && gameLogic.update) gameLogic.update(state, input, dt);
+    // 1. HARDENED LOOP GUARD: If dimensions are invalid, skip frame to prevent NaN
+    if (width <= 0 || height <= 0) {
+        requestAnimationFrame(loop);
+        return;
+    }
+
+    // 2. INPUT CLAMPING: Ensure inputs are always within finite bounds
+    // This prevents NaN propagation if mouse coordinates are somehow invalid or undefined
+    if (typeof input.x !== 'number') input.x = width / 2;
+    if (typeof input.y !== 'number') input.y = height / 2;
+    input.x = Math.max(0, Math.min(width, input.x));
+    input.y = Math.max(0, Math.min(height, input.y));
+
+    if (gameLogic && gameLogic.update) gameLogic.update(state, input, dt, width, height);
     if (gameLogic && gameLogic.draw) gameLogic.draw(state, ctx, width, height);
   } catch (e) {
     throw e;
