@@ -21,15 +21,17 @@ export const createHostHTML = (aiScript: string) => {
   // --- SANDBOX 2.0 CONDITIONAL INJECTION ---
   const hasVector = /class\s+Vector\b/.test(aiScript);
   const hasColors = /const\s+COLORS\b/.test(aiScript);
-  const hasGameObject = /class\s+GameObject\b/.test(aiScript);
+  // GameObject removed - AI should define their own entity classes for flexibility
+  // const hasGameObject = /class\s+GameObject\b/.test(aiScript);
   // We always inject audio to encourage usage, as it's a new feature
   
   let injection = "";
   if (!hasColors) injection += LIB_COLORS;
   if (!hasVector) injection += LIB_VECTOR;
   injection += LIB_AUDIO;
+  // GameObject injection removed to align with main project architecture
   // Fallback: If AI uses GameObject but forgets to define it, we provide it.
-  if (!hasGameObject) injection += LIB_GAMEOBJECT;
+  // if (!hasGameObject) injection += LIB_GAMEOBJECT;
 
   // Serialize the code to a JSON string literal.
   const serializedScript = JSON.stringify(aiScript)

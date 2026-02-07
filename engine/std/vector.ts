@@ -88,6 +88,8 @@ class Vector {
     
     dot(v) { return this.x * v.x + this.y * v.y; }
     
+    cross(v) { return this.x * v.y - this.y * v.x; }
+    
     lerp(v, amt) {
         this.x += (v.x - this.x) * amt;
         this.y += (v.y - this.y) * amt;
@@ -105,5 +107,6 @@ class Vector {
     static mult(v, n) { return new Vector(v.x * n, v.y * n); }
     static div(v, n) { return new Vector(v.x / n, v.y / n); }
     static dist(v1, v2) { return Math.sqrt(Math.pow(v2.x - v1.x, 2) + Math.pow(v2.y - v1.y, 2)); }
+    static distance(v1, v2) { return Vector.dist(v1, v2); }
 }
 `;

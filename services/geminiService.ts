@@ -35,7 +35,7 @@ Your output is a TECHNICAL SPECIFICATION for the Engineer.
    - \`input.isDown\` (Mouse button Boolean).
    - \`input.keys\` (Object map: e.g., \`{'ArrowUp': true, ' ': true}\`).
 3. **Game Loop**: 
-   - \`update(state, input, dt)\`: \`dt\` is delta time in SECONDS (e.g., 0.016).
+   - \`update(state, input, dt, width, height)\`: \`dt\` is delta time in SECONDS (e.g., 0.016).
 4. **State**: Must contain \`width\` and \`height\` to handle window resizing.
 5. **Globals**: 
    - \`Vector\` class is provided (Mutable/Chainable).
@@ -72,7 +72,7 @@ CODE:
 1. **Return Object**:
    return {
      init: (state, width, height) => { ... },
-     update: (state, input, dt) => { ... }, // dt is in Seconds
+     update: (state, input, dt, width, height) => { ... }, // dt is in Seconds
      draw: (state, ctx, width, height) => { ... }
    };
 
@@ -82,12 +82,14 @@ CODE:
    - **NO 'this'**: Use 'state' for all persistent data.
    - **Resizing**: Update state.width/height in \`init\`. 
    - **Restart**: Implement a soft restart inside \`update\` (e.g., if gameOver && input.isDown -> reset state).
+   - **NO GameObject**: You MUST define your own Entity class if needed (e.g. class Enemy {}).
 
 3. **Core Classes (Conditional Injection)**:
-   - **Vector**: Available globally. **Mutable & Chainable**.
-     *   API: \`set(x,y)\`, \`add(v)\`, \`sub(v)\`, \`mult(s)\`, \`div(s)\`, \`mag()\`, \`limit(max)\`, \`normalize()\`, \`heading()\`, \`rotate(rad)\`, \`lerp(v, t)\`, \`dist(v)\`, \`copy()\`.
-     *   *Example*: \`pos.add(vel)\` modifies \`pos\` in place. Use \`copy()\` if you need to preserve original.
-   - **COLORS**: Available globally: \`{ BG, PLAYER, ENEMY, ACCENT, TEXT }\`.
+   - **Vector**: Available globally.
+     *   **Static Methods (Recommended for State)**: \`Vector.add(v1, v2)\`, \`Vector.sub(v1, v2)\`, \`Vector.mult(v, n)\`, \`Vector.div(v, n)\`, \`Vector.dist(v1, v2)\`, \`Vector.distance(v1, v2)\`.
+     *   **Instance Methods (Local vars only)**: \`v.add(v)\`, \`v.sub(v)\`, \`v.mult(n)\`, \`v.div(n)\`, \`v.mag()\`, \`v.normalize()\`, \`v.limit(max)\`, \`v.heading()\`, \`v.rotate(rad)\`, \`v.lerp(v, t)\`, \`v.dist(v)\`, \`v.copy()\`, \`v.cross(v)\`.
+     *   *Usage*: Prefer \`state.pos = Vector.add(state.pos, state.vel)\` to keep state pure.
+   - **COLORS**: Available globally: \`{ BG: '#0a0a0a', PLAYER: '#00ffff', ENEMY: '#ff0066', ACCENT: '#ffff00', TEXT: '#ffffff' }\`.
    - **sfx**: Available globally for Audio.
      *   API: \`sfx.play(type)\`
      *   Types: \`'shoot'\`, \`'hit'\`, \`'jump'\`, \`'collect'\`, \`'explosion'\`.
@@ -100,6 +102,7 @@ CODE:
 5. **Input Handling**:
    - Keyboard: \`if (input.keys['ArrowUp'] || input.keys['KeyW']) ...\`
    - Mouse: \`state.player.x = input.x;\`
+   - Boundaries: Use \`width\` and \`height\` parameters for edge detection.
 
 6. **UX Requirement**:
    - The game MUST draw text instructions on the screen (e.g., "WASD to Move", "Click to Start") in the \`draw\` function so the user knows how to play.
