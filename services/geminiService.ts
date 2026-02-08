@@ -28,29 +28,44 @@ You are a Software Architect for a specific HTML5 Canvas Sandbox.
 Your input is a "Game Concept". 
 Your output is a TECHNICAL SPECIFICATION for the Engineer.
 
---- SANDBOX CONTRACT (STRICT) ---
-1. **Environment**: A single full-screen <canvas>.
-2. **Input Object**: 
-   - \`input.x\`, \`input.y\` (Mouse coordinates).
-   - \`input.isDown\` (Mouse button Boolean).
-   - \`input.keys\` (Object map: e.g., \`{'ArrowUp': true, ' ': true}\`).
-3. **Game Loop**: 
-   - \`update(state, input, dt, width, height)\`: \`dt\` is delta time in SECONDS (e.g., 0.016).
-4. **State**: Must contain \`width\` and \`height\` to handle window resizing.
-5. **Globals**: 
-   - \`Vector\` class is provided (Mutable/Chainable).
-   - \`COLORS\` object is provided.
-   - \`sfx\` object is provided (Audio).
+--- 🔒 SANDBOX CONSTITUTION (NON-NEGOTIABLE) ---
+1. **ENVIRONMENT**: 
+   - Code runs in a strict \`new Function()\` sandbox.
+   - **NO** access to \`window\`, \`document\`, or DOM (e.g. \`document.createElement\` is BANNED).
+   - **NO** external libraries (p5.js, Three.js are NOT available).
+   
+2. **PROGRAMMING PARADIGM**:
+   - **PURE FUNCTIONAL**: Use Factory Functions (returning Plain Objects) instead of Classes.
+   - **NO 'THIs'**: The \`this\` keyword is BANNED (context is unstable). Use \`state\` passed as argument.
+   - **NO GLOBAL VARS**: All mutable data MUST live inside the \`state\` object.
+
+3. **API INJECTION (CLOSED LIST)**:
+   The Sandbox injects EXACTLY these global tools. **DO NOT ASSUME OTHERS EXIST.**
+
+   **A. Vector API (Static Methods Only)**:
+   - \`Vector.add(v1, v2)\`, \`Vector.sub(v1, v2)\`, \`Vector.mult(v, n)\`, \`Vector.div(v, n)\`
+   - \`Vector.distance(v1, v2)\`, \`Vector.dist(v1, v2)\`
+   - \`Vector.mag(v)\`, \`Vector.magSq(v)\`, \`Vector.normalize(v)\`, \`Vector.setMag(v, n)\`, \`Vector.limit(v, max)\`
+   - \`Vector.heading(v)\`, \`Vector.rotate(v, angle)\`, \`Vector.angleBetween(v1, v2)\`
+   - \`Vector.lerp(v1, v2, amt)\`
+   - \`Vector.dot(v1, v2)\`, \`Vector.cross(v1, v2)\`
+   - \`Vector.random2D()\`, \`Vector.fromAngle(angle, len)\`
+   
+   *⚠️ WARNING: Instance methods (e.g. \`v.add()\`) are BANNED. Use \`state.pos = Vector.add(state.pos, vel)\`.*
+
+   **B. COLORS**:
+   - \`{ BG, PLAYER, ENEMY, ACCENT, TEXT }\`
+
+   **C. AUDIO (sfx)**:
+   - \`sfx.play('shoot' | 'hit' | 'jump' | 'collect' | 'explosion')\`
+
 -----------------------------------
 
 Define:
-1. The 'state' object structure.
-2. Helper Functions list (Math helpers, Collision checks).
-   *NOTE: Do not specify a Vector class, it is built-in.*
-3. The Logic Flow for 'update' (Movement, Physics, Win/Loss conditions).
-   *IMPORTANT: Specify where to play sound effects (e.g., "Play 'shoot' sound on fire").*
-4. The Logic Flow for 'draw' (Render order, Shapes, **REQUIRED: On-screen Instructions**).
-   *NOTE: Do not use input logic here. Only rendering based on state.*
+1. **State Schema**: Detailed JSON structure (Must use \`Vector\` for pos/vel).
+2. **Helper Functions**: Logic utilizing ONLY the allowed Vector API.
+3. **Update Logic**: Detailed steps using \`state\` and \`input\`.
+4. **Draw Logic**: Rendering using standard \`ctx\` methods (fillRect, arc, etc.).
 
 DO NOT write code. Write structure and requirements.
 `;
@@ -68,50 +83,39 @@ CODE:
 // code here...
 \`\`\`
 
---- ENGINE API ---
-1. **Return Object**:
+--- 🛡️ SANDBOX EXECUTION RULES ---
+
+1. **STRICT ISOLATION**:
+   - You are running in a \`new Function\` scope.
+   - **DO NOT** use \`this\`. Use the provided \`state\` argument.
+   - **DO NOT** create Classes (\`class Player {}\`). Use Factory Functions (\`const createPlayer = () => ({...})\`).
+
+2. **API WHITELIST (CRITICAL)**:
+   - **Vector**: YOU MUST USE STATIC METHODS ONLY.
+     - ✅ \`state.pos = Vector.add(state.pos, state.vel)\`
+     - ❌ \`state.pos.add(state.vel)\` (CRASHES)
+     - ❌ \`Vector.clone(v)\` (NOT IN LIST -> Use \`new Vector(v.x, v.y)\`)
+   
+   - **Globals provided**: \`Vector\` (Static), \`COLORS\` (Hex codes), \`sfx\`. DO NOT define them.
+
+3. **STATE MANAGEMENT**:
+   - Initialize ALL state in \`init(state, w, h)\`.
+   - \`state\` is your ONLY persistent memory.
+
+4. **GAME LOOP INTERFACE**:
    return {
      init: (state, width, height) => { ... },
      update: (state, input, dt, width, height) => { ... }, // dt is in Seconds
      draw: (state, ctx, width, height) => { ... }
    };
 
-2. **Rules**:
+5. **RULES**:
    - **NO HTML/DOM**: Do not create <div>, <button>, or use document.getElementById.
    - **NO External Assets**: Use ctx.fillRect, ctx.arc, ctx.lineTo.
-   - **NO 'this'**: Use 'state' for all persistent data.
-   - **Resizing**: Update state.width/height in \`init\`. 
-   - **Restart**: Implement a soft restart inside \`update\` (e.g., if gameOver && input.isDown -> reset state).
-   - **NO GameObject**: You MUST define your own Entity class if needed (e.g. class Enemy {}).
-
-3. **Core Classes (Conditional Injection)**:
-   - **Vector**: Available globally.
-     *   **Static Methods (Recommended for State)**: \`Vector.add(v1, v2)\`, \`Vector.sub(v1, v2)\`, \`Vector.mult(v, n)\`, \`Vector.div(v, n)\`, \`Vector.dist(v1, v2)\`, \`Vector.distance(v1, v2)\`.
-     *   **Instance Methods (Local vars only)**: \`v.add(v)\`, \`v.sub(v)\`, \`v.mult(n)\`, \`v.div(n)\`, \`v.mag()\`, \`v.normalize()\`, \`v.limit(max)\`, \`v.heading()\`, \`v.rotate(rad)\`, \`v.lerp(v, t)\`, \`v.dist(v)\`, \`v.copy()\`, \`v.cross(v)\`.
-     *   *Usage*: Prefer \`state.pos = Vector.add(state.pos, state.vel)\` to keep state pure.
-   - **COLORS**: Available globally: \`{ BG: '#0a0a0a', PLAYER: '#00ffff', ENEMY: '#ff0066', ACCENT: '#ffff00', TEXT: '#ffffff' }\`.
-   - **sfx**: Available globally for Audio.
-     *   API: \`sfx.play(type)\`
-     *   Types: \`'shoot'\`, \`'hit'\`, \`'jump'\`, \`'collect'\`, \`'explosion'\`.
-     *   *Usage*: Call inside \`update\` when an event occurs.
-
-4. **CRITICAL: State Management**:
-   - **NO Global State**: Do NOT define a top-level \`const state = ...\`. The \`state\` object is passed into \`init\`.
-   - **Initialization**: You MUST initialize ALL game variables (arrays, player, score, etc.) INSIDE the \`init\` function attached to the \`state\` argument.
-
-5. **Input Handling**:
-   - Keyboard: \`if (input.keys['ArrowUp'] || input.keys['KeyW']) ...\`
-   - Mouse: \`state.player.x = input.x;\`
-   - Boundaries: Use \`width\` and \`height\` parameters for edge detection.
-
-6. **UX Requirement**:
-   - The game MUST draw text instructions on the screen (e.g., "WASD to Move", "Click to Start") in the \`draw\` function so the user knows how to play.
-
-7. **Strict MVC Separation**:
-   - **NEVER** use \`input\` inside the \`draw\` function.
-   - Perform all hover/click detection in \`update\`.
-   - Store visual states (e.g., \`state.isHovered\`) in \`state\`.
-   - \`draw\` should ONLY render based on \`state\`.
+   - **Input Handling**: 
+     - Keyboard: \`if (input.keys['ArrowUp'])\`
+     - Mouse: \`input.x\`, \`input.y\`, \`input.isDown\`
+   - **UX**: Draw text instructions in \`draw\`.
 `;
 
 // --- HELPERS ---
@@ -283,9 +287,13 @@ export const iterateGameCode = async (currentCode: string, modificationPrompt: s
     ${currentCode}
     ---
     TASK: "${modificationPrompt}".
-    Return the FULL updated JavaScript code.
-    CRITICAL: Ensure strict adherence to the NO 'this' keyword rule.
-    Output ONLY the code block.
+
+    ⚠️ **SANDBOX COMPLIANCE CHECK**:
+    1. **Verify Vector API**: Are you using ANY instance methods (e.g. \`v.add()\`)? -> **REWRITE** using \`Vector.add(v, ...)\`.
+    2. **Verify 'this'**: Did you introduce a Class or \`this\`? -> **REFACTOR** to pure functions.
+    3. **Verify Globals**: Did you define top-level vars? -> **MOVE** to \`state\`.
+
+    Return the FULL updated JavaScript code block.
     `;
     
     // We reuse the engineer logic but with a direct modification prompt
