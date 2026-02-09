@@ -72,6 +72,7 @@ class Vector {
     static add(v1, v2) { return new Vector(v1.x + v2.x, v1.y + v2.y); }
     static sub(v1, v2) { return new Vector(v1.x - v2.x, v1.y - v2.y); }
     static mult(v, n) { return new Vector(v.x * n, v.y * n); }
+    static mul(v, n) { return Vector.mult(v, n); } // Alias for AI compatibility
     static div(v, n) { return new Vector(v.x / n, v.y / n); }
     
     // Distance & Magnitude
